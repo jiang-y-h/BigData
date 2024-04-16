@@ -3,7 +3,7 @@ import time
 
 # 读数据
 def read_data():
-    file = open('Data.txt', 'r')
+    file = open('PageRank\Data.txt', 'r')
     graph=[] 
     node_set=set()
     for line in file:

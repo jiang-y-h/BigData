@@ -1,4 +1,5 @@
 import networkx as nx
+import numpy as np
 
 
 def read_data(path):
@@ -48,9 +49,34 @@ def standard_answer(G,alpha=0.85,tol=1e-6):
     return standard_result
 
 
+def check_result(sorted_indices, sorted_scores, standard_result):
+    # 不仅要比较次序，还要计算结果loss
+    loss = 0
+    wrong_num = 0
+    for i in range(100):
+        if sorted_indices[i]+1 not in standard_result:
+            wrong_num += 1
+            continue
+        loss += abs(sorted_scores[i] - standard_result[sorted_indices[i]+1])
+
+    print('wrong_num:', wrong_num)
+    print('loss:', loss)
+
+
 def write_result(sorted_indices, sorted_scores, filename):
     # 将结果写入文件
     path = 'results/' + filename
     with open(path, 'w') as file:
         for i in range(len(sorted_indices)):
             file.write(str(sorted_indices[i]+1) + ' ' + str(sorted_scores[i]) + '\n')
+
+
+def sort_scores(scores, log=False):
+    # 只取最大的前100个
+    sorted_indices = np.argsort(scores)[::-1][:100]
+    sorted_scores = scores[sorted_indices]
+    if log == True:
+        print(sum(scores))
+        print('Top 100:', sorted_scores)
+        print('Top 100的点:', sorted_indices+1)  # 点的序号从1开始
+    return sorted_indices, sorted_scores
