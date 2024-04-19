@@ -111,7 +111,7 @@ class PageRankSparse():
 
         return self.scores, interation_num
 
-    def power_interation_book(self):
+    def power_interation(self):
         e = self.node_num  # 两次迭代之间的误差
         interation_num = 0  # 迭代次数
 
@@ -223,7 +223,109 @@ class PageRankBlock():
                 print(f"第{interation_num}次迭代, 误差为{e}")
             
         return self.scores, interation_num
+
+class PageRankBlockStripe():
+    '''
+    内存不足, 优化读取磁盘的次数
+    对状态转换矩阵进行分块处理
+    每次读取r_new的一个块, 同时读取状态转换矩阵的一个块
+    '''
+    def __init__(self, G, node_num, block_size=2000, log=False, beta=0.85, tol=1e-6):
+        self.beta = beta
+        self.tol = tol
+        self.G = G
+        self.node_num = node_num
+        self.log = log
+        self.block_size = block_size
+        # on disk
+        self.scores = np.ones((self.node_num))/self.node_num  # 1/N
+        self.stripes,self.length= self.get_stripes()
+        self.new_scores = np.zeros((node_num))  # 分块存储在ram
     
+    def deal_dead_end(self,stripes, length, node_num, block_size):
+        block_num = self.node_num//block_size
+        remain = self.node_num%block_size
+        if remain != 0:
+            block_num += 1
+        for i in range(node_num):
+            # 没有出度则为dead-end
+            if length[i] == 0:
+                length[i] = node_num
+                for j in range(block_num):
+                    stripes[j][i] = [k for k in range(j*block_size, min((j+1)*block_size, node_num))]
+        return stripes, length
+
+    def get_stripes(self):
+        block_num = self.node_num//self.block_size
+        remain = self.node_num%self.block_size
+        if remain != 0:  # +1是因为最后一个stripe也得存
+            block_num += 1
+
+        stripes = [ {} for _ in range(block_num)]  # [0,1,2,...,block_num-1]
+        length = [0 for _ in range(self.node_num)]
+
+        # 初始化稀疏矩阵
+        for edge in self.G:
+            to_node = edge[1]-1
+            from_node = edge[0]-1
+            index = to_node//self.block_size  # dest所在块的编号
+            if from_node not in stripes[index].keys():
+                # 将from_node加入stripes
+                stripes[index][from_node] = []
+            stripes[index][from_node].append(to_node)  # 将to_node加入stripes
+            length[from_node] += 1  # 记录每个节点的出度
+
+        return self.deal_dead_end(stripes, length, self.node_num, self.block_size)
+    
+    def read_disk(self, index):
+        return self.stripes[index]
+    
+    def write_disk(self, new_scores):
+        self.scores = np.copy(new_scores)
+
+    def read_block(self, begin, end):
+        self.new_scores[begin:end] = (1-self.beta)/self.node_num
+
+    def write_block(self, begin, end, value):
+        self.new_scores[begin:end] += value
+
+
+    def power_interation_block_stripe(self):  
+        block_num = self.node_num//self.block_size
+        remain = self.node_num%self.block_size
+        block_size = self.block_size
+        if remain != 0:  # +1是因为最后一个stripe也得存
+            block_num += 1
+        end_block_index = block_num-1
+            
+        e = 1  # 两次迭代之间的误差
+        interation_num = 0
+        while e > 1e-3:
+            e = 0
+            # 每次处理一块
+            for i in range(end_block_index):
+                self.read_block(i*block_size, (i+1)*block_size)
+                stripe=self.read_disk(i)
+                for from_node in stripe:  # 遍历当前块下的所有源节点(stripe)
+                    for to_node in stripe[from_node]:  # 对应的目标节点
+                        self.write_block(to_node, to_node+1, self.beta*self.scores[from_node]/self.length[from_node])
+                e += sum(abs(self.new_scores[i*block_size:(i+1)*block_size]-self.scores[i*block_size:(i+1)*block_size]))
+            
+            # 处理剩余部分
+            if remain != 0:
+                self.read_block(end_block_index*block_size, node_num)
+                stripe=self.read_disk(end_block_index)
+                for from_node in stripe:
+                    for to_node in stripe[from_node]:
+                        self.write_block(to_node, to_node+1, self.beta*self.scores[from_node]/self.length[from_node])
+                e+=sum(abs(self.new_scores[end_block_index*block_size:]-self.scores[end_block_index*block_size:]))
+            self.write_disk(self.new_scores)
+            interation_num += 1
+            
+            if self.log == True:
+                print(f"第{interation_num}次迭代, 误差为{e}")
+        return self.scores, interation_num
+
 
 
 if __name__ == "__main__":
@@ -231,9 +333,10 @@ if __name__ == "__main__":
     graph, node_num, node_set = read_data(path)
     if check_continuous(node_set, node_num) == True:
         #prb = PageRankBasic(graph, node_num, log=True)
-        prs = PageRankSparse(graph, node_num, log=True)
+        #prs = PageRankSparse(graph, node_num, log=True)
         #prb = PageRankBlock(graph, node_num, block_size=2000, log=True)
-        scores, interation_num = prs.power_interation_book()
+        prbs=PageRankBlockStripe(graph,node_num,block_size=2000,log=True)
+        scores, interation_num = prbs.power_interation_block_stripe()
         sorted_indices, sorted_scores = sort_scores(scores)
         standard_result = standard_answer(graph)
         # print(sorted_indices[0], sorted_scores[0])
