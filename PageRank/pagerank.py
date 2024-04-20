@@ -1,6 +1,6 @@
 import numpy as np
 from utils import *
-
+import time
 
 class PageRankBasic():
     '''
@@ -286,11 +286,11 @@ class PageRankBlockStripe():
     def read_block(self, begin, end):
         self.new_scores[begin:end] = (1-self.beta)/self.node_num
 
-    def write_block(self, begin, end, value):
-        self.new_scores[begin:end] += value
+    def write_block(self, index, value):
+        self.new_scores[index] += value
 
 
-    def power_interation_block_stripe(self):  
+    def power_interation(self):  
         block_num = self.node_num//self.block_size
         remain = self.node_num%self.block_size
         block_size = self.block_size
@@ -308,7 +308,7 @@ class PageRankBlockStripe():
                 stripe=self.read_disk(i)
                 for from_node in stripe:  # 遍历当前块下的所有源节点(stripe)
                     for to_node in stripe[from_node]:  # 对应的目标节点
-                        self.write_block(to_node, to_node+1, self.beta*self.scores[from_node]/self.length[from_node])
+                        self.write_block(to_node,self.beta*self.scores[from_node]/self.length[from_node])
                 e += sum(abs(self.new_scores[i*block_size:(i+1)*block_size]-self.scores[i*block_size:(i+1)*block_size]))
             
             # 处理剩余部分
@@ -317,7 +317,7 @@ class PageRankBlockStripe():
                 stripe=self.read_disk(end_block_index)
                 for from_node in stripe:
                     for to_node in stripe[from_node]:
-                        self.write_block(to_node, to_node+1, self.beta*self.scores[from_node]/self.length[from_node])
+                        self.write_block(to_node,self.beta*self.scores[from_node]/self.length[from_node])
                 e+=sum(abs(self.new_scores[end_block_index*block_size:]-self.scores[end_block_index*block_size:]))
             self.write_disk(self.new_scores)
             interation_num += 1
@@ -325,8 +325,7 @@ class PageRankBlockStripe():
             if self.log == True:
                 print(f"第{interation_num}次迭代, 误差为{e}")
         return self.scores, interation_num
-
-
+    
 
 if __name__ == "__main__":
     path = 'PageRank\Data.txt'
@@ -336,7 +335,10 @@ if __name__ == "__main__":
         #prs = PageRankSparse(graph, node_num, log=True)
         #prb = PageRankBlock(graph, node_num, block_size=2000, log=True)
         prbs=PageRankBlockStripe(graph,node_num,block_size=2000,log=True)
-        scores, interation_num = prbs.power_interation_block_stripe()
+        start_time = time.time()
+        scores, interation_num = prbs.power_interation()
+        end_time = time.time()
+        print("时间：", end_time - start_time)
         sorted_indices, sorted_scores = sort_scores(scores)
         standard_result = standard_answer(graph)
         # print(sorted_indices[0], sorted_scores[0])
