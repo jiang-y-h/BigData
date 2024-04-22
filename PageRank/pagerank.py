@@ -33,25 +33,25 @@ class PageRankBasic():
                 matrix[i,j] /= sum_of_col
         return matrix
 
-    def power_interation(self):
+    def power_iteration(self):
         # 全存在ram
         matrix = self.get_stochastic_matrix()
         scores = np.ones((self.node_num))/self.node_num  # 用 1/node_num 初始化rank vector
         new_scores = np.zeros((self.node_num))
 
-        interation_num = 0  # 迭代次数
+        iteration_num = 0  # 迭代次数
         e = self.node_num # 两次迭代之间的误差
 
         while e > self.tol:
             new_scores = self.beta*np.dot(matrix,scores)+(1-self.beta)/self.node_num  # β随机游走
             e = sum(abs(new_scores-scores))
             scores = np.copy(new_scores)
-            interation_num += 1
+            iteration_num += 1
 
             if self.log == True:
-                print(f"第{interation_num}次迭代, 误差为{e}")
+                print(f"第{iteration_num}次迭代, 误差为{e}")
 
-        return scores, interation_num
+        return scores, iteration_num
     
 
 class PageRankSparse():
@@ -84,9 +84,9 @@ class PageRankSparse():
     def write_disk(self, new_scores):
         self.scores = np.copy(new_scores)
 
-    def power_interation(self):
+    def power_iteration(self):
         e = self.node_num  # 两次迭代之间的误差
-        interation_num = 0  # 迭代次数
+        iteration_num = 0  # 迭代次数
 
         while e > self.tol:
             new_scores = (1-self.beta)*np.ones((self.node_num))/self.node_num  # ram
@@ -105,16 +105,16 @@ class PageRankSparse():
 
             e = sum(abs(new_scores-self.scores))
             self.write_disk(new_scores)
-            interation_num += 1
+            iteration_num += 1
 
             if self.log == True:
-                print(f"第{interation_num}次迭代, 误差为{e}")
+                print(f"第{iteration_num}次迭代, 误差为{e}")
 
-        return self.scores, interation_num
+        return self.scores, iteration_num
 
-    def power_interation(self):
+    def power_iteration(self):
         e = self.node_num  # 两次迭代之间的误差
-        interation_num = 0  # 迭代次数
+        iteration_num = 0  # 迭代次数
 
         while e > self.tol:
             new_scores = np.zeros((self.node_num))
@@ -130,12 +130,12 @@ class PageRankSparse():
             new_scores += (1-sum(new_scores))/self.node_num
             e = sum(abs(new_scores-self.scores))
             self.write_disk(new_scores)
-            interation_num += 1
+            iteration_num += 1
 
             if self.log == True:
-                print(f"第{interation_num}次迭代, 误差为{e}")
+                print(f"第{iteration_num}次迭代, 误差为{e}")
 
-        return self.scores, interation_num
+        return self.scores, iteration_num
 
 
 class PageRankBlock():
@@ -176,11 +176,11 @@ class PageRankBlock():
     def write_block(self, begin, end, value):
         self.new_scores[begin:end] += value
 
-    def power_interation(self):
+    def power_iteration(self):
         # 分块
         block_num = self.node_num//self.block_size
         e = 1  # 两次迭代之间的误差
-        interation_num = 0  # 迭代次数
+        iteration_num = 0  # 迭代次数
 
         while e > self.tol:
             e = 0
@@ -218,12 +218,13 @@ class PageRankBlock():
 
             e += sum(abs(self.new_scores[block_num*self.block_size:]-self.scores[block_num*self.block_size:]))
             self.write_disk(self.new_scores)
-            interation_num += 1
+            iteration_num += 1
 
             if self.log == True:
-                print(f"第{interation_num}次迭代, 误差为{e}")
+                print(f"第{iteration_num}次迭代, 误差为{e}")
             
-        return self.scores, interation_num
+        return self.scores, iteration_num
+
 
 class PRBlockStripe():
     '''
@@ -244,6 +245,7 @@ class PRBlockStripe():
         self.new_scores = np.zeros((node_num))  # 分块存储在ram
     
     def deal_dead_end(self,stripes, length, node_num, block_size):
+        # 可以提前往stripe里加，也可以在power_iteration里判断出度
         block_num = self.node_num//block_size
         remain = self.node_num%block_size
         if remain != 0:
@@ -293,8 +295,7 @@ class PRBlockStripe():
     def write_scores(self, index, value):
         self.new_scores[index] += value
 
-
-    def power_interation(self):  
+    def power_iteration(self):  
         block_num = self.node_num//self.block_size
         remain = self.node_num%self.block_size
         block_size = self.block_size
@@ -303,7 +304,7 @@ class PRBlockStripe():
         end_block_index = block_num-1
             
         e = 1  # 两次迭代之间的误差
-        interation_num = 0
+        iteration_num = 0
         while e > 1e-3:
             e = 0
             # 每次处理一块
@@ -324,11 +325,12 @@ class PRBlockStripe():
                         self.write_scores(to_node,self.beta*self.read_disk_score(from_node)/self.length[from_node])
                 e+=sum(abs(self.new_scores[end_block_index*block_size:]-self.scores[end_block_index*block_size:]))
             self.write_disk(self.new_scores)
-            interation_num += 1
+            iteration_num += 1
             
             if self.log == True:
-                print(f"第{interation_num}次迭代, 误差为{e}")
-        return self.scores, interation_num
+                print(f"第{iteration_num}次迭代, 误差为{e}")
+        return self.scores, iteration_num
+
 
 class PRBlockStripeParallel():
     '''
@@ -389,7 +391,6 @@ class PRBlockStripeParallel():
     def read_disk_scores(self, index):
         return self.scores[index]
 
-    
     def write_disk(self, new_scores):
         self.scores = np.copy(new_scores)
 
@@ -419,7 +420,7 @@ class PRBlockStripeParallel():
         return (new_scores_temp.tolist(),e)
 
 
-    def power_interation(self): 
+    def power_iteration(self): 
         
         block_num = self.node_num//self.block_size
         remain = self.node_num%self.block_size
@@ -428,7 +429,7 @@ class PRBlockStripeParallel():
         end_block_index = block_num-1
             
         e = 1  # 两次迭代之间的误差
-        interation_num = 0
+        iteration_num = 0
         
         while e > 1e-3:
             e=0
@@ -459,10 +460,10 @@ class PRBlockStripeParallel():
                     e+=slice_e
 
             self.write_disk(self.new_scores)
-            interation_num += 1
+            iteration_num += 1
             if self.log == True:
-                print(f"第{interation_num}次迭代, 误差为{e}")
-        return self.scores, interation_num
+                print(f"第{iteration_num}次迭代, 误差为{e}")
+        return self.scores, iteration_num
 
 
 
@@ -471,11 +472,11 @@ if __name__ == "__main__":
     graph, node_num, node_set = read_data(path)
     if check_continuous(node_set, node_num) == True:
         #prb = PageRankBasic(graph, node_num, log=True)
-        #prs = PageRankSparse(graph, node_num, log=True)
+        prs = PageRankSparse(graph, node_num, log=True)
         #prb = PageRankBlock(graph, node_num, block_size=2000, log=True)
-        prbs=PRBlockStripeParallel(graph,node_num,block_size=2000,log=True)
+        #prbs=PRBlockStripeParallel(graph,node_num,block_size=2000,log=True)
         start_time = time.time()
-        scores, interation_num = prbs.power_interation()
+        scores, iteration_num = prs.power_iteration()
         end_time = time.time()
         print("时间：", end_time - start_time)
         sorted_indices, sorted_scores = sort_scores(scores)
