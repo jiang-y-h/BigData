@@ -71,3 +71,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    input("按下任意键关闭程序...")
