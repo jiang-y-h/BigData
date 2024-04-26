@@ -1,5 +1,6 @@
 import networkx as nx
 import numpy as np
+import os
 
 
 def read_data(path):
@@ -24,7 +25,7 @@ def check_continuous(node_set, node_num):
         if i not in node_set:
             print('点的序号不连续')
             return False
-    print('点的序号连续')
+    print('-----------点的序号连续-----------')
     return True
 
 
@@ -39,8 +40,8 @@ def standard_answer(G,alpha=0.85,tol=1e-6):
     # 对 pagerank 值进行排序
     sorted_pr = sorted(pr.items(), key=lambda x: x[1], reverse=True)
     # 计算所有节点pagerank值之和
-    pr_sum = sum(pr.values())
-    print(f"所有节点pagerank值之和: {pr_sum}")
+    # pr_sum = sum(pr.values())
+    # print(f"所有节点pagerank值之和: {pr_sum}")
 
     # 保存前100个节点的pagerank值
     standard_result = {}
@@ -59,14 +60,18 @@ def check_result(sorted_indices, sorted_scores, standard_result):
             continue
         loss += abs(sorted_scores[i] - standard_result[sorted_indices[i]+1])
 
+    print('-----------与networkx计算结果比较-----------')
     print('wrong_num:', wrong_num)
     print('loss:', loss)
 
 
 def write_result(sorted_indices, sorted_scores, filename):
     # 将结果写入文件
-    path = 'results/' + filename
-    with open(path, 'w') as file:
+    dir_path = 'results'
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+    file_path = os.path.join(dir_path, filename)
+    with open(file_path, 'w') as file:
         for i in range(len(sorted_indices)):
             file.write(str(sorted_indices[i]+1) + ' ' + str(sorted_scores[i]) + '\n')
 
@@ -76,7 +81,7 @@ def sort_scores(scores, log=False):
     sorted_indices = np.argsort(scores)[::-1][:100]
     sorted_scores = scores[sorted_indices]
     if log == True:
-        print(sum(scores))
+        print('pagerank值之和:', sum(scores))
         print('Top 100:', sorted_scores)
         print('Top 100的点:', sorted_indices+1)  # 点的序号从1开始
     return sorted_indices, sorted_scores

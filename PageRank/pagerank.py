@@ -84,7 +84,7 @@ class PageRankSparse():
     def write_disk(self, new_scores):
         self.scores = np.copy(new_scores)
 
-    def power_iteration(self):
+    def power_iteration1(self):
         e = self.node_num  # 两次迭代之间的误差
         iteration_num = 0  # 迭代次数
 
@@ -443,7 +443,7 @@ class PRBlockStripeParallel():
             temp_scores = []
             
             # 每个进程处理一个block
-            pool = multiprocessing.Pool()
+            pool = multiprocessing.Pool(4)
             temp_scores=pool.starmap(self.process_block, block_input)
             pool.close()
             pool.join()
@@ -468,15 +468,15 @@ class PRBlockStripeParallel():
 
 
 if __name__ == "__main__":
-    path = 'PageRank\Data.txt'
+    path = 'PageRank\Data.txt'  # 在bigdata目录下打开的
     graph, node_num, node_set = read_data(path)
     if check_continuous(node_set, node_num) == True:
         #prb = PageRankBasic(graph, node_num, log=True)
-        prs = PageRankSparse(graph, node_num, log=True)
-        #prb = PageRankBlock(graph, node_num, block_size=2000, log=True)
+        #prs = PageRankSparse(graph, node_num, log=True)
+        prb = PageRankBlock(graph, node_num, block_size=1000, log=True)
         #prbs=PRBlockStripeParallel(graph,node_num,block_size=2000,log=True)
         start_time = time.time()
-        scores, iteration_num = prs.power_iteration()
+        scores, iteration_num = prb.power_iteration()
         end_time = time.time()
         print("时间：", end_time - start_time)
         sorted_indices, sorted_scores = sort_scores(scores)
