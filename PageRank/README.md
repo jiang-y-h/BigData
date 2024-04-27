@@ -38,4 +38,4 @@ page_rank.ipynb是编程过程中的一些代码测试探索（为了方便编�
 1. 选择完算法后，等待程序运行一段时间，即可得到每一轮迭代的误差，当误差低于1e-6时，迭代结束，输出前100个节点，以及其对应的PageRank值。
 同时会将其与调用networkx库运行的结果进行比较，测试代码是否排序正确，以及得到的PageRank值误差。  
 ![alt text](img/image-4.png)
-1. 最终将结果保存到result\result.txt
+1. 最终将结果保存到results\result.txt

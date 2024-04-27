@@ -318,7 +318,7 @@ class PRBlockStripe():
             
             # 处理剩余部分
             if remain != 0:
-                self.read_block(end_block_index*block_size, node_num)
+                self.read_block(end_block_index*block_size, self.node_num)
                 stripe=self.read_disk_stripe(end_block_index)
                 for from_node in stripe:
                     for to_node in stripe[from_node]:
