@@ -1,13 +1,14 @@
 from tqdm import tqdm
-import utils
+from utils import *
+import pickle
 
 class userCF():
-    def __init__(self, data):
-        self.data = data
-        self.user_sim = self.user_similarity()
-        self.user_sim_sorted = self.user_similarity_sorted()
+    def __init__(self, baseline_data,train_data,neighbor_k=20):
+        self.baseline_data=baseline_data
+        self.similarity=self.cal_similarity(train_data)
+        self.neighbor_k=neighbor_k
 
-    def pearson(x, y, x_ave, y_ave):
+    def pearson(self,x, y,x_id,y_id):
         shared_items = set(x.keys()) & set(y.keys())
         # 如果没有共同元素，返回0
         if not shared_items:
@@ -15,8 +16,8 @@ class userCF():
         # 计算pearson相关系数
         sim, sum1, sum2 = 0, 0, 0
         for item in shared_items:
-            temp1 = x[item] - x_ave
-            temp2 = y[item] - y_ave
+            temp1 = x[item] - self.baseline_data.global_avg-self.baseline_data.user_bias[x_id]
+            temp2 = y[item] - self.baseline_data.global_avg-self.baseline_data.user_bias[y_id]
             # 为了避免分母为0的情况，对将打分值做一个微调
             if temp1 == 0:
                 temp1 = 0.1
@@ -29,7 +30,7 @@ class userCF():
         sim = sim / ((sum1**0.5) * (sum2**0.5))
         return sim
     
-    def cal_similarity(self,train_set, user_average_score):
+    def cal_similarity(self,train_set):
         """
         calculate the similarity between users
         Args:
@@ -38,15 +39,16 @@ class userCF():
             similarity: the similarity matrix
         """
         similarity = {key:{} for key in train_set.keys()}
-        for i, user1 in tqdm(enumerate(train_set.keys()), desc="Outer Loop"):
+        for i, user1 in tqdm(enumerate(train_set.keys()), desc="similarity calculation"):
             for j, user2 in enumerate(list(train_set.keys())[i+1:], start=i+1):
-                pearson_sim = self.pearson(train_set[user1], train_set[user2], user_average_score[user1], user_average_score[user2])
+                pearson_sim = self.pearson(train_set[user1], train_set[user2], user1, user2)
                 similarity[user1][user2] = pearson_sim
                 similarity[user2][user1] = pearson_sim
         return similarity
     
-    def cf_user_predict(user_id, item_list, data, similarity, user_average_score, neighbor_k):
-        neighbor = sorted(similarity[user_id], key=lambda x: similarity[user_id][x], reverse=True)
+    
+    def cf_user_predict(self,user_id, item_list, data,use_baseline=False):
+        neighbor = sorted(self.similarity[user_id], key=lambda x: self.similarity[user_id][x], reverse=True)
         score={}
         for item_id in item_list:
             num=0
@@ -54,46 +56,55 @@ class userCF():
             predict=0
             sum=0
             while index<len(neighbor):
-                if num>=neighbor_k:
+                if num>=self.neighbor_k:
                     break
                 if item_id in data[neighbor[index]]:
-                    if similarity[user_id][neighbor[index]]<0:
+                    if self.similarity[user_id][neighbor[index]]<0:
                         break
                     num+=1
-                    predict+=similarity[user_id][neighbor[index]]*(data[neighbor[index]][item_id])
-                    sum+=similarity[user_id][neighbor[index]]
+                    # temp = self.baseline_data.predict(neighbor[index],item_id) if use_baseline else 0
+                    predict+=self.similarity[user_id][neighbor[index]]*(data[neighbor[index]][item_id])
+                    sum+=self.similarity[user_id][neighbor[index]]
                 index+=1
             if sum!=0:
                 predict=predict/sum
             else:
-                predict=user_average_score[user_id]
-            score[item_id]=predict
+                predict=self.baseline_data.global_avg+self.baseline_data.user_bias[user_id]
+            
+            if use_baseline:
+                predict=0.8*predict+0.2*self.baseline_data.predict(user_id,item_id)
+            score[item_id]=min(predict,100)
+            score[item_id]=max(predict,0)
         return score
+    
+    def cal_rmse(self,train_data,valid_data,use_baseline=False):
+        rmse, count = 0.0, 0
+        for user_id, rate_data in tqdm(valid_data.items(), desc="Predicting users"):
+            item_list = rate_data.keys()
+            predict_score = self.cf_user_predict(user_id, item_list,train_data,use_baseline)
+            rmse +=  sum((predict_score[key] - rate_data[key]) ** 2 for key in item_list)
+            count += len(item_list)
+            temp_rmse = (rmse / count)**0.5
+            print("curr_rmse:",temp_rmse)
+        rmse = (rmse / count)**0.5
+        return rmse
+
 
 
 if __name__ == "__main__":
-    train_path="data/train.txt"
-    
-    ucf = userCF()
-    similarity = ucf.cal_similarity(train_data, user_average_score)
-    test_data={}
-    test_path="data/test.txt"
+    train_path ="data/train_data.txt"
+    train_data = read_data(train_path)
+    print("len(train_data):", len(train_data))
 
-    with open(test_path,"r") as f:
-        while True:
-            data=f.readline()
-            if not data:
-                break
-            data=data.split('|')
-            user_id,rate_nums=int(data[0]),int(data[1])
-            user_rate={}
-            for i in range(int(rate_nums)):
-                rate=int(f.readline())
-                user_rate[rate]=0
-            test_data[user_id]=user_rate
+    valid_path ="data/validate_data.txt"
+    valid_data = read_data(valid_path)
+    print("len(valid_data):", len(valid_data))
 
-    for user in test_data.keys():
-        item_list=list(test_data[user].keys())
-        predict=ucf.cf_user_predict(user,item_list,train_data,similarity,user_average_score,10)
-        for item in item_list:
-            test_data[user][item]=predict[item]
+    baseline_path = 'models/baseline_estimator.pkl'
+    with open(baseline_path, 'rb') as f:
+        baseline_data = pickle.load(f)
+    print("baseline_data:", baseline_data.global_avg)
+
+    ucf=userCF(baseline_data,train_data)
+    rmse=ucf.cal_rmse(train_data,valid_data,use_baseline=True)
+    print("rmse:",rmse)
