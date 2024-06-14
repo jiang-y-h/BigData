@@ -33,7 +33,10 @@ class SVD:
         """
         p = self.P[:, user_id]
         q = self.Q[:, item_id]
-        return np.dot(p, q)
+        score = np.dot(p, q)
+        score = min(score, 100)
+        score = max(score, 0)
+        return score
     
     def loss(self, data):
         """
@@ -128,7 +131,10 @@ class SVD_bias:
             bi = 0
         p = self.P[:, user_id]
         q = self.Q[:, item_id]
-        return self.global_avg + bx + bi + np.dot(p, q)
+        score = self.global_avg + bx + bi + np.dot(p, q)
+        score = min(score, 100)
+        score = max(score, 0)
+        return score
     
     def loss(self, data):
         """
@@ -246,9 +252,13 @@ class SVD_attribute:
                 if count == self.k:
                     break
         if count == 0:
-            return direct_score
-        return direct_score * 0.6 + (indirect_score / count) * 0.4
-
+            score = direct_score
+        else:
+            score = direct_score * 0.7 + (indirect_score / count) * 0.3
+        score = min(score, 100)
+        score = max(score, 0)
+        return score
+    
     def loss(self, data):
         """
         计算loss
