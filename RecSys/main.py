@@ -2,7 +2,6 @@ from utils import *
 from SVD import *
 from UserCF import *
 from ItemCF import *
-from tqdm import tqdm
 
 
 def cal_util_data(data):
