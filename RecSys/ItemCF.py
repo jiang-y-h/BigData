@@ -53,7 +53,7 @@ class ItemCF():
         sim=sim/((sum1**0.5)*(sum2**0.5))
         return sim
     
-    def predict(self,item_id,user_id):
+    def predict(self,user_id,item_id):
         neighbor=set()
         if item_id in self.similar_nodes:
             neighbor=self.similar_nodes[item_id]

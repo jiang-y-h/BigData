@@ -2,6 +2,7 @@ from utils import *
 from SVD import *
 from UserCF import *
 from ItemCF import *
+from tqdm import tqdm
 
 
 def cal_util_data(data):
@@ -82,5 +83,5 @@ if __name__ == '__main__':
         for user_id, rate_data in results.items():
             f.write(str(user_id) + "|" + str(len(rate_data)) + "\n")
             for item_id, score in rate_data.items():
-                f.write(str(item_id) + "\n")
+                f.write(str(item_id) + " " + str(score) + "\n")
     

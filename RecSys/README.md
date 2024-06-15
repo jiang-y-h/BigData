@@ -1,7 +1,7 @@
-# Recommend Syste项目说明
+# Recommend System项目说明
 本项目文件结构如下：  
 ```
-PageRank
+Recommend System
 │
 ├─实验结果
 │    ├─result_best.txt
