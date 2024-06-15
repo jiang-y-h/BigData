@@ -2,11 +2,12 @@ from tqdm import tqdm
 from utils import *
 import pickle
 
-class userCF():
+class UserCF():
     def __init__(self, baseline_data,train_data,neighbor_k=20):
         self.baseline_data=baseline_data
         self.similarity=self.cal_similarity(train_data)
         self.neighbor_k=neighbor_k
+        self.train_data=train_data
 
     def pearson(self,x, y,x_id,y_id):
         shared_items = set(x.keys()) & set(y.keys())
@@ -72,7 +73,7 @@ class userCF():
                 predict=self.baseline_data.global_avg+self.baseline_data.user_bias[user_id]
             
             if use_baseline:
-                predict=0.8*predict+0.2*self.baseline_data.predict(user_id,item_id)
+                predict=0.5*predict+0.5*self.baseline_data.predict(user_id,item_id)
             score[item_id]=min(predict,100)
             score[item_id]=max(predict,0)
         return score
@@ -84,10 +85,36 @@ class userCF():
             predict_score = self.cf_user_predict(user_id, item_list,train_data,use_baseline)
             rmse +=  sum((predict_score[key] - rate_data[key]) ** 2 for key in item_list)
             count += len(item_list)
-            temp_rmse = (rmse / count)**0.5
-            print("curr_rmse:",temp_rmse)
         rmse = (rmse / count)**0.5
         return rmse
+    
+    def predict(self,user_id,item_id):
+        neighbor = sorted(self.similarity[user_id], key=lambda x: self.similarity[user_id][x], reverse=True)
+        num=0
+        index=0
+        predict_score=0
+        sum=0
+        while index<len(neighbor):
+            if num>=self.neighbor_k:
+                break
+            if item_id in self.train_data[neighbor[index]]:
+                if self.similarity[user_id][neighbor[index]]<0:
+                    break
+                num+=1
+                predict_score+=self.similarity[user_id][neighbor[index]]*(self.train_data[neighbor[index]][item_id])
+                sum+=self.similarity[user_id][neighbor[index]]
+            index+=1
+        if sum!=0:
+            predict_score=predict_score/sum
+        else:
+            predict_score=self.baseline_data.global_avg+self.baseline_data.user_bias[user_id]
+        
+        predict_score=0.2*predict_score+0.8*self.baseline_data.predict(user_id,item_id)
+        predict_score=min(predict_score,100)
+        predict_score=max(predict_score,0)
+        return predict_score
+
+
 
 
 
@@ -105,6 +132,6 @@ if __name__ == "__main__":
         baseline_data = pickle.load(f)
     print("baseline_data:", baseline_data.global_avg)
 
-    ucf=userCF(baseline_data,train_data)
+    ucf=UserCF(baseline_data,train_data)
     rmse=ucf.cal_rmse(train_data,valid_data,use_baseline=True)
     print("rmse:",rmse)

@@ -3,7 +3,7 @@ from utils import *
 import pickle
 import random
 
-class itemCF():
+class ItemCF():
     def __init__(self,baseline_data,train_data_path,similar_nodes):
         self.baseline=baseline_data
         self.train_data=self.read_data(train_data_path)
@@ -122,8 +122,6 @@ class itemCF():
                 predict=self.predict(item,user)
                 sum+=(predict-valid_data[item][user])**2
             count+=len(valid_data[item])
-            temp_rmse = (sum / count)**0.5
-            print("curr_rmse:",temp_rmse)
         return (sum/count)**0.5
 
 if __name__ == "__main__":
@@ -136,7 +134,7 @@ if __name__ == "__main__":
     similar_nodes_path='data/similar_nodes.pkl'
     with open(similar_nodes_path, 'rb') as f:
         similar_nodes = pickle.load(f)
-    icf=itemCF(baseline_data,train_path,similar_nodes)
+    icf=ItemCF(baseline_data,train_path,similar_nodes)
     rmse=icf.cal_rmse(valid_path)
     print("rmse:",rmse)
     

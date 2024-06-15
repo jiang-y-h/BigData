@@ -38,11 +38,14 @@ if __name__ == '__main__':
 
     if model_name == '1':
         model = BaselineEstimator(global_avg, user_bias, item_bias)
-        model.fit(train_data)
     elif model_name == '2':
-        print("TODO")
+        estimator = BaselineEstimator(global_avg, user_bias, item_bias)
+        model= UserCF(estimator,train_data)
     elif model_name == '3':
-        print("TODO")
+        with open("data/similar_nodes.pkl", "rb") as f:
+            similar_nodes = pickle.load(f)
+        estimator = BaselineEstimator(global_avg, user_bias, item_bias)
+        model = ItemCF(estimator, path,similar_nodes)
     elif model_name == '4':
         model = SVD()
         model.train(5, 0.0005, train_data)
