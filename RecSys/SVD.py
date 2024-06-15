@@ -57,7 +57,7 @@ class SVD:
         loss += self.lambda_q * np.linalg.norm(self.Q) ** 2
         return np.sqrt(loss / count)
 
-    def train(self, epoches, lr, data, valid_data):
+    def train(self, epoches, lr, data, valid_data=None):
         """
         训练模型
         Args:
@@ -76,8 +76,9 @@ class SVD:
                     self.P[:, user_id] += lr * (error * q - self.lambda_p * p)
                     self.Q[:, item_id] += lr * (error * p - self.lambda_q * q)
             # 计算loss
-            epoch_loss = self.loss(valid_data)
-            print("Epoch {} finished: validate loss={}".format(epoch, epoch_loss))
+            if valid_data is not None:
+                epoch_loss = self.loss(valid_data)
+                print("Epoch {} finished: validate loss={}".format(epoch, epoch_loss))
             # 学习率衰减
             lr *= 0.9
 
@@ -157,7 +158,7 @@ class SVD_bias:
         loss += self.lambda_bi * np.linalg.norm(list(self.bi.values())) ** 2
         return np.sqrt(loss / count)
 
-    def train(self, epoches, lr, data, valid_data):
+    def train(self, epoches, lr, data, valid_data=None):
         """
         训练模型
         Args:
@@ -180,8 +181,9 @@ class SVD_bias:
                     self.P[:, user_id] += lr * (error * q - self.lambda_p * p)
                     self.Q[:, item_id] += lr * (error * p - self.lambda_q * q)
             # 计算loss
-            epoch_loss = self.loss(valid_data)
-            print("Epoch {} finished: validate loss={}".format(epoch, epoch_loss))
+            if valid_data is not None:
+                epoch_loss = self.loss(valid_data)
+                print("Epoch {} finished: validate loss={}".format(epoch, epoch_loss))
             # 学习率衰减
             lr *= 0.9
 
@@ -280,7 +282,7 @@ class SVD_attribute:
         loss += self.lambda_bi * np.linalg.norm(list(self.bi.values())) ** 2
         return np.sqrt(loss / count)
 
-    def train(self, epoches, lr, data, valid_data):
+    def train(self, epoches, lr, data, valid_data=None):
         """
         训练模型
         Args:
@@ -303,8 +305,9 @@ class SVD_attribute:
                     self.P[:, user_id] += lr * (error * q - self.lambda_p * p)
                     self.Q[:, item_id] += lr * (error * p - self.lambda_q * q)
             # 计算loss
-            epoch_loss = self.loss(valid_data)
-            print("Epoch {} finished: validate loss={}".format(epoch, epoch_loss))
+            if valid_data is not None:
+                epoch_loss = self.loss(valid_data)
+                print("Epoch {} finished: validate loss={}".format(epoch, epoch_loss))
             # 学习率衰减
             lr *= 0.9
         

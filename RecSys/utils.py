@@ -6,17 +6,11 @@ class BaselineEstimator:
     '''
     baseline：使用全局平均分+用户偏差+物品偏差来估计评分
     '''
-
     def __init__(self, global_avg, user_bias, item_bias):
         self.global_avg = global_avg
         self.user_bias = user_bias
         self.item_bias = item_bias
         self.baseline_estimator = {}
-
-    def fit(self, train_data):
-        for user_id, rate_data in train_data.items():
-            for item_id, score in rate_data.items():
-                self.baseline_estimator[(user_id, item_id)] = self.global_avg + self.user_bias[user_id] + self.item_bias[item_id]
 
     def save_model(self, path="models/baseline_estimator.pkl"):
         # 保存自身模型
@@ -24,7 +18,36 @@ class BaselineEstimator:
             pickle.dump(self, f)
 
     def predict(self, user_id, item_id):
-        return self.baseline_estimator.get((user_id, item_id), self.global_avg)  # 不存在则使用global_avg
+        score = self.global_avg
+        if user_id in self.user_bias:
+            score += self.user_bias[user_id]
+        if item_id in self.item_bias:
+            score += self.item_bias[item_id]
+        score = max(0, score)
+        score = min(100, score)
+        return score
+
+
+def read_test_data(path):
+    '''
+    读取test.txt格式的数据，返回字典
+    '''
+    data = {}
+    with open(path, 'r') as f:
+        while True:
+            line = f.readline().strip()
+            if not line:
+                break
+            user_id, item_num = line.split('|')
+            item_num = int(item_num)
+            user_id = int(user_id)
+            # 读取待预测的物品
+            item_list = []
+            for i in range(item_num):
+                item_id = int(f.readline().strip())
+                item_list.append(item_id)
+            data[user_id] = item_list
+    return data
 
 
 def RMSE(data, model):
